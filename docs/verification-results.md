@@ -1,14 +1,38 @@
-# Verification record
+# Verification record — accepted pilot build
 
-Date: 2026-10-15. No DNET commands or production deployment were performed.
+Date: **2026-10-15**. Application code verified at commit **3bcf38c3bfae37cb4f96cc62fe42559ea72822be** on `feat/civic-platform`.
 
-## Observed evidence
+Accepted GitHub Actions run: [38789056014](https://github.com/raulrgleon/apomatch/actions/runs/38789056014). Both **quality** and **docker** jobs completed successfully. Earlier failing runs are retained as evidence of findings and corrections, not counted as passes.
 
-- Local production build, strict TypeScript and ESLint passed.
-- 21 unit/component tests passed.
-- Initial 8 integration tests passed locally against the PostgreSQL WASM engine and in GitHub Actions against native PostgreSQL 16.
-- GitHub Actions run [38787742501](https://github.com/raulrgleon/apomatch/actions/runs/38787742501) completed migration twice, seed, integration tests and production build successfully. It found a missing tracked public directory in the Docker image and browser-test issues including a contrast ratio below 4.5. That run is recorded as **failed**, not accepted.
-- The missing public asset directory, contrast, calculator error selector and restricted-workspace browser reuse have been corrected. Follow-up browser/native PostgreSQL/Docker validation is in progress.
-- Additional integration coverage now checks source correction conflicts and private delayed reminders. These checks must pass before accepting this code revision.
+| Check actually executed                                          | Result                                       |
+| ---------------------------------------------------------------- | -------------------------------------------- |
+| Prettier check                                                   | Passed                                       |
+| ESLint, zero warnings                                            | Passed                                       |
+| Strict TypeScript                                                | Passed                                       |
+| Unit/component suite                                             | 21 passed                                    |
+| Native PostgreSQL 16 migration, repeated deployment and seed     | Passed                                       |
+| Native PostgreSQL API integration suite                          | 10 passed                                    |
+| Optimized production build                                       | Passed                                       |
+| Playwright Chromium desktop/mobile suite                         | 12 passed                                    |
+| Automated axe WCAG checks on the public overview, desktop/mobile | No violations in tested view                 |
+| Docker production image build                                    | Passed                                       |
+| Local PostgreSQL WASM integration/browser fallback               | 10 integration and 12 browser tests passed   |
+| Backup shell syntax                                              | Passed with `bash -n`; no live restore claim |
 
-Screenshots, when attached, come from the running app and clearly marked fictional demo data. An automated accessibility scan does not certify full WCAG conformance. Backups, restoration and Coolify deployment have not been exercised on the owner's server.
+Integration coverage includes tenant/role denial, independent source verification, source correction conflicts, report moderation/evidence, private groups, invitation consumption, delayed private inbox reminders, rate limits, account export and account deletion.
+
+Browser coverage includes city/ZIP lookup, EN/ES persistence, dark mode, official election source links, missing-candidate states, isolated fictional comparison, hypothetical calculations/invalid input, report submission, private groups, invitation generation, export/logout, admin navigation, cross-tenant denial and responsive overflow checks.
+
+Real screenshots under `docs/screenshots` were inspected. They use an isolated fictional demo, not fabricated claims about Auburn. Source-date verification remains dated; re-running a seed does not renew it.
+
+## Corrections made during validation
+
+- Added a tracked public resource so Docker COPY succeeds in a fresh checkout.
+- Darkened muted text to meet contrast checks on the light callout surface.
+- Scoped the calculator error assertion to its actual message rather than Next.js's route announcer.
+- Used a fresh browser context/process for each test only in the restricted local Chromium fallback; CI uses normal Playwright Chromium.
+- Corrected source projections and made editorial writes/audits transactional.
+
+## Limits of this evidence
+
+No DNET access or production deployment occurred. The live Ollama adapter, outbound email/push, image upload, billing, real jurisdiction boundary ingestion and a deployed backup/restore drill are not marked operational. Automated accessibility checks do not certify full WCAG compliance. The backup helper's connection-URL compatibility change is syntax-checked; the operator must run its restore drill against an isolated real deployment before launch.
