@@ -1,11 +1,11 @@
 # Entrega de ApoMatch — 15 de octubre de 2026
 
-**Estado: plataforma piloto funcional de extremo a extremo, con límites de producción explícitos.** No se ha fusionado a main ni desplegado en el servidor DNET.
+**Estado: plataforma piloto funcional de extremo a extremo, con límites de producción explícitos.** Está en `main` desde el 15 de octubre de 2026, commit de fusión `fe865f9`. No se ha desplegado en el servidor DNET.
 
 | Entregable        | Ubicación / resultado                                                                                                                                                   |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Repositorio       | https://github.com/raulrgleon/apomatch                                                                                                                                  |
-| Rama              | `feat/civic-platform`                                                                                                                                                   |
+| Rama              | `main` (fusión `fe865f9`); la rama de trabajo `feat/civic-platform` se conserva                                                                                         |
 | Revisión          | https://github.com/raulrgleon/apomatch/pull/1                                                                                                                           |
 | Código validado   | `37097ecc2435b6b90e7afa877a2a53d963f0f090`                                                                                                                              |
 | CI aceptada       | https://github.com/raulrgleon/apomatch/actions/runs/38790449489                                                                                                         |
