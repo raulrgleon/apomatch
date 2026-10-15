@@ -34,3 +34,5 @@ Mutation: same-origin check → JSON streaming size bound → Zod validation →
 ## Scaling
 
 Run app replicas behind an HTTPS proxy, with one external PostgreSQL database and a bounded connection pool. Keep migrations a single pre-deployment job. Add a queue only when scheduled delivery/integration volume justifies it. Organization/subscription tables reserve future plans; they do not activate billing or share political profiles.
+
+11. **Targeted dependency patch.** An npm override pins deepmerge-ts 8.0.0, the patched release for [GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx), in Prisma configuration tooling. This avoids changing the Prisma major version solely to resolve that transitive advisory. CLI/schema/migration compatibility and the full CI suite are checked after the override.
