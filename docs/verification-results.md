@@ -1,8 +1,8 @@
 # Verification record — accepted pilot build
 
-Date: **2026-10-15**. Application code verified at commit **3bcf38c3bfae37cb4f96cc62fe42559ea72822be** on `feat/civic-platform`.
+Date: **2026-10-15**. Application code verified at commit **37097ecc2435b6b90e7afa877a2a53d963f0f090** on `feat/civic-platform`.
 
-Accepted GitHub Actions run: [38789056014](https://github.com/raulrgleon/apomatch/actions/runs/38789056014). Both **quality** and **docker** jobs completed successfully. Earlier failing runs are retained as evidence of findings and corrections, not counted as passes.
+Accepted GitHub Actions run: [38790449489](https://github.com/raulrgleon/apomatch/actions/runs/38790449489). Both **quality** and **docker** jobs completed successfully. Earlier failing runs are retained as evidence of findings and corrections, not counted as passes.
 
 | Check actually executed                                          | Result                                       |
 | ---------------------------------------------------------------- | -------------------------------------------- |
@@ -32,7 +32,8 @@ Real screenshots under `docs/screenshots` were inspected. They use an isolated f
 - Scoped the calculator error assertion to its actual message rather than Next.js's route announcer.
 - Used a fresh browser context/process for each test only in the restricted local Chromium fallback; CI uses normal Playwright Chromium.
 - Corrected source projections and made editorial writes/audits transactional.
+- Patched the transitive deepmerge-ts advisory, revalidated Prisma migrations and added a production dependency-audit CI gate.
 
 ## Limits of this evidence
 
-No DNET access or production deployment occurred. The live Ollama adapter, outbound email/push, image upload, billing, real jurisdiction boundary ingestion and a deployed backup/restore drill are not marked operational. Automated accessibility checks do not certify full WCAG compliance. The backup helper's connection-URL compatibility change is syntax-checked; the operator must run its restore drill against an isolated real deployment before launch.
+No DNET access or production deployment occurred. The live Ollama adapter, outbound email/push, image upload, billing, real jurisdiction boundary ingestion and a deployed backup/restore drill are not marked operational. Automated accessibility checks do not certify full WCAG compliance. The backup helper's connection-URL compatibility change is syntax-checked, and the CI stack separately exercised native pg_dump/pg_restore. The operator must still run an environment-specific encrypted backup and recovery drill before launch.

@@ -38,3 +38,7 @@ Suggested pilot target: daily encrypted snapshots, seven daily and four weekly c
 5. Record elapsed recovery time, source snapshot, checks and errors. Delete the drill environment only after reviewing evidence.
 
 Avoid `--clean` against any live database. This repository has not executed a backup or restore on DNET.
+
+## Executed CI evidence
+
+Run [38790449489](https://github.com/raulrgleon/apomatch/actions/runs/38790449489) built the image, started the complete isolated Docker Compose stack, applied migrations, seeded both datasets, checked the containerized health/elections API and restored a native PostgreSQL custom-format dump into a separate database. The restored City count was two. This verifies the reproducible stack and a logical database restore in CI; it does not measure DNET recovery time or validate an off-host encrypted retention policy.

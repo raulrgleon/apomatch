@@ -27,6 +27,8 @@ flowchart TD
 9. **AI is optional and cannot publish.** Disabled by default. The Ollama adapter accepts bounded plain text from an editor, not a user-provided fetch URL. Output is stored as a draft with source ID and content digest. Instructions inside documents are untrusted; prompt controls are defense in depth, not a guarantee against injection.
 10. **Deployment kept separate.** Docker targets separate app runtime from migration tooling. No server, existing Docker network, proxy, port, database or backup was changed.
 
+11. **Targeted dependency patch.** An npm override pins deepmerge-ts 8.0.0, the patched release for [GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx), in Prisma configuration tooling. This avoids changing the Prisma major version solely to resolve that transitive advisory. CLI/schema/migration compatibility and the full CI suite are checked after the override.
+
 ## Request lifecycle
 
 Mutation: same-origin check → JSON streaming size bound → Zod validation → session lookup → organization/resource permission → rate limit where applicable → scoped transaction → audit → minimal no-store response. HTML is rendered as text, never through `dangerouslySetInnerHTML`.
@@ -34,5 +36,3 @@ Mutation: same-origin check → JSON streaming size bound → Zod validation →
 ## Scaling
 
 Run app replicas behind an HTTPS proxy, with one external PostgreSQL database and a bounded connection pool. Keep migrations a single pre-deployment job. Add a queue only when scheduled delivery/integration volume justifies it. Organization/subscription tables reserve future plans; they do not activate billing or share political profiles.
-
-11. **Targeted dependency patch.** An npm override pins deepmerge-ts 8.0.0, the patched release for [GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx), in Prisma configuration tooling. This avoids changing the Prisma major version solely to resolve that transitive advisory. CLI/schema/migration compatibility and the full CI suite are checked after the override.

@@ -39,3 +39,7 @@ Consulted 2026-10-15:
 - Election content: the operator must review official source reuse terms, attribution, ballot/candidate completeness, corrections, disclaimers and applicable federal/state coordination rules before enabling production integrations. No eligibility determinations, candidate endorsements, rewards for voting or coercive tracking are implemented.
 
 No finding here authorizes a public deployment or asserts that all relevant laws have been satisfied.
+
+## Dependency audit evidence
+
+On 2026-10-15, the production dependency audit reported zero known vulnerabilities after a targeted deepmerge-ts patch. The accepted CI run rechecked the audit and Prisma migration compatibility. This is a dated advisory-database result, not a claim that the application has no security defects.

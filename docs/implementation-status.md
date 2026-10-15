@@ -4,7 +4,7 @@ This is executable full-stack pilot software with intentionally explicit operati
 
 | Area             | Implemented                                                                                                                                                             | Remaining / integration boundary                                                                                                |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Foundation       | Next.js/React/strict TS, PostgreSQL/Prisma, migration, shared design tokens, Docker targets, CI                                                                         | Native deployment verification and operational approval                                                                         |
+| Foundation       | Next.js/React/strict TS, PostgreSQL/Prisma, migration, shared design tokens, Docker targets, CI                                                                         | Target-host staging assessment and operational approval                                                                         |
 | Identity         | Registration/login/logout, hashed sessions, scoped roles, password-confirmed export/delete, session API                                                                 | Verified email, password recovery, MFA and session-management UI                                                                |
 | Location         | City/ZIP search, canonical state/county/city/jurisdiction tables                                                                                                        | Verified school/district boundaries, map geometry and geographic editing/import screens                                         |
 | BarrioDecide     | Persisted report creation, moderation, categories/search/status/pagination, timelines and evidence-gated state changes                                                  | Safe image pipeline, official agency delivery and duplicate assistance are disabled                                             |
@@ -20,7 +20,7 @@ This is executable full-stack pilot software with intentionally explicit operati
 
 ## Next technical sequence
 
-1. Finish browser/native PostgreSQL/Docker evidence and resolve any findings in this PR.
+1. Preserve the passing browser/native PostgreSQL/Docker/restore checks as the code evolves; assess the actual staging host only after authorization.
 2. Curate complete official Auburn/Nemaha ballot and district coverage using a separate editor and verifier; preserve source publication dates and corrections.
 3. Add administrator MFA, verified email/recovery and an operator-approved rights contact before public registration is hosted.
 4. Configure isolated staging after owner authorization, run backup/restore and monitor resource usage on the actual machine.
