@@ -1,5 +1,6 @@
 export type Language = 'en' | 'es';
 export interface SourceView {
+  revision?: number;
   id: string;
   title: string;
   url: string;

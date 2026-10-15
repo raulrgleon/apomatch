@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, ShieldCheck, FileCheck2, Activity, Users, BookOpen, Settings2 } from 'lucide-react';
 import { api, Notice, Empty } from './civic-app';
 import { Button } from './ui/button';
-import type { AdminData, Language, UserView, Reviewable } from '@/lib/types';
+import type { AdminData, Language, UserView, Reviewable, SourceView } from '@/lib/types';
 import { messages, statuses } from '@/lib/i18n';
 export function AdminPanel({
   org,
@@ -425,6 +425,14 @@ export function AdminPanel({
           </section>
         </div>
       )}
+      {tab === 'editorial' && can('content.write') && (
+        <SourceCorrection
+          sources={data.sources}
+          org={org}
+          lang={lang}
+          onDone={() => setRefresh((v) => v + 1)}
+        />
+      )}
       {tab === 'moderation' && (
         <div className="stack">
           {data.queue.length ? (
@@ -633,5 +641,87 @@ function Field({
         <input name={name} required type={kind} maxLength={max} />
       )}
     </label>
+  );
+}
+
+function SourceCorrection({
+  sources,
+  org,
+  lang,
+  onDone,
+}: {
+  sources: SourceView[];
+  org: string;
+  lang: Language;
+  onDone: () => void;
+}) {
+  const [selected, setSelected] = useState(''),
+    [message, setMessage] = useState(''),
+    [busy, setBusy] = useState(false);
+  const source = sources.find((s) => s.id === selected);
+  const es = lang === 'es';
+  return (
+    <section className="panel" style={{ marginTop: 24 }}>
+      <h2>{es ? 'Corregir una fuente existente' : 'Correct an existing source'}</h2>
+      <p className="muted">
+        {es
+          ? 'La corrección conserva la versión anterior y retira la verificación hasta una revisión independiente.'
+          : 'A correction preserves the old version and withdraws verification until independent review.'}
+      </p>
+      <label>
+        {messages[lang].source}
+        <select value={selected} onChange={(e) => setSelected(e.target.value)}>
+          <option value="">—</option>
+          {sources.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      {source && (
+        <form
+          className="form-stack"
+          key={source.id + '-' + source.revision}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            const data = Object.fromEntries(new FormData(e.currentTarget));
+            try {
+              await api(
+                'admin/sources',
+                org,
+                { ...data, id: source.id, revision: source.revision },
+                'PATCH',
+              );
+              setMessage(messages[lang].success);
+              onDone();
+            } catch (e) {
+              setMessage((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label>
+            {messages[lang].title}
+            <input name="title" defaultValue={source.title} required maxLength={200} />
+          </label>
+          <label>
+            URL
+            <input name="url" type="url" defaultValue={source.url} required />
+          </label>
+          <input name="kind" type="hidden" value={source.kind} />
+          <label>
+            {es ? 'Extracto' : 'Excerpt'}
+            <textarea name="excerpt" defaultValue={source.excerpt} maxLength={6000} required />
+          </label>
+          <Button variant="outline" disabled={busy}>
+            {es ? 'Enviar corrección a revisión' : 'Submit correction for review'}
+          </Button>
+        </form>
+      )}
+      <p role="status">{message}</p>
+    </section>
   );
 }

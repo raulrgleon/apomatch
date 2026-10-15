@@ -124,7 +124,8 @@ export async function handle(
         });
       } else {
         // Perform a KDF even for unknown addresses to reduce enumeration via timing.
-        const stored = user?.passwordHash || '00000000000000000000000000000000:' + '0'.repeat(128);
+        const stored =
+          user?.passwordHash || 'v2:00000000000000000000000000000000:' + '0'.repeat(128);
         if (!(await verifyPassword(data.password, stored)) || !user)
           throw new HttpError(401, 'INVALID_CREDENTIALS');
       }
@@ -177,6 +178,22 @@ export async function handle(
         await tx.user.delete({ where: { id: user.id } });
       });
       return sessionCookie(json({ ok: true }), '', new Date(0));
+    }
+    if (route === 'account/sessions' && method === 'GET') {
+      const user = await requireUser(request);
+      return json({
+        items: await db.session.findMany({
+          where: { userId: user.id, expiresAt: { gt: new Date() } },
+          select: { id: true, createdAt: true, expiresAt: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+      });
+    }
+    if (route === 'account/sessions' && method === 'DELETE') {
+      const user = await requireUser(request);
+      const data = z.object({ id }).parse(await readBody(request));
+      await db.session.deleteMany({ where: { id: data.id, userId: user.id } });
+      return json({ ok: true });
     }
     const org = await organization(request);
     const cityId =
@@ -422,7 +439,7 @@ export async function handle(
       const user = await requireUser(request);
       return json({
         items: await db.notification.findMany({
-          where: { userId: user.id },
+          where: { userId: user.id, deliverAt: { lte: new Date() } },
           orderBy: { createdAt: 'desc' },
           take: 100,
         }),
@@ -431,7 +448,7 @@ export async function handle(
     if (route === 'notifications/read' && method === 'POST') {
       const user = await requireUser(request);
       await db.notification.updateMany({
-        where: { userId: user.id, readAt: null },
+        where: { userId: user.id, readAt: null, deliverAt: { lte: new Date() } },
         data: { readAt: new Date() },
       });
       return json({ ok: true });
@@ -517,6 +534,24 @@ export async function handle(
           url: `${process.env.APP_ORIGIN}/groups?org=${org.slug}#invite=${token}`,
           expiresInHours: 48,
         });
+      }
+      if (path[2] === 'events' && path[3] && path[4] === 'reminder' && method === 'POST') {
+        await rateLimit(`reminder:${user.id}`, 30, 3600);
+        const data = z.object({ remindAt: z.iso.datetime() }).parse(await readBody(request));
+        const event = await db.communityEvent.findFirst({
+          where: { id: path[3], groupId: group.id },
+        });
+        const deliverAt = new Date(data.remindAt);
+        if (!event || deliverAt <= new Date() || deliverAt >= event.startsAt)
+          throw new HttpError(422, 'INVALID_REMINDER_TIME');
+        await db.notification.create({
+          data: {
+            userId: user.id,
+            title: `Reminder: ${event.title} — ${event.startsAt.toISOString()}. Participation is voluntary.`,
+            deliverAt,
+          },
+        });
+        return json({ ok: true, delivery: 'in-app-only', deliverAt }, 201);
       }
       if (path[2] === 'events' && method === 'POST') {
         if (group.ownerId !== user.id) throw new HttpError(403, 'OWNER_REQUIRED');
@@ -633,6 +668,46 @@ export async function handle(
           return item;
         });
         return json({ id: source.id }, 201);
+      }
+      if (route === 'admin/sources' && method === 'PATCH') {
+        requirePermission(user, org.id, 'content.write');
+        const data = sourceSchema
+          .extend({ id, revision: z.number().int().min(1) })
+          .parse(await readBody(request));
+        if (data.kind === 'DEMO' && !org.isDemo)
+          throw new HttpError(422, 'DEMO_SOURCE_NOT_ALLOWED');
+        await db.$transaction(async (tx) => {
+          const old = await tx.source.findFirst({ where: { id: data.id, organizationId: org.id } });
+          if (!old) throw new HttpError(404, 'SOURCE_NOT_FOUND');
+          const { id: sourceId, revision, ...changes } = data;
+          const changed = await tx.source.updateMany({
+            where: { id: sourceId, organizationId: org.id, revision },
+            data: {
+              ...changes,
+              revision: { increment: 1 },
+              status: 'IN_REVIEW',
+              verifiedAt: null,
+              createdById: user.id,
+              retrievedAt: new Date(),
+            },
+          });
+          if (changed.count !== 1) throw new HttpError(409, 'REVISION_CONFLICT');
+          await tx.editorialReview.create({
+            data: {
+              organizationId: org.id,
+              entityType: 'source',
+              entityId: sourceId,
+              reviewerId: user.id,
+              status: 'IN_REVIEW',
+              note: 'Correction submitted. Previous version retained; independent verification required.',
+              snapshot: snapshot(old),
+            },
+          });
+          await tx.auditLog.create({
+            data: audit(org.id, user.id, 'source.corrected', 'source', sourceId),
+          });
+        });
+        return json({ ok: true });
       }
       if (route === 'admin/reviews' && method === 'POST') {
         requirePermission(user, org.id, 'content.verify');

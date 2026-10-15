@@ -451,6 +451,9 @@ model Notification {
   readAt    DateTime?
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliverAt DateTime  @default(now())
+
+  @@index([userId, deliverAt])
 }
 
 model CalculationModel {

@@ -274,6 +274,73 @@ describe.sequential('real database API workflows', () => {
       last = await call('auth/login', 'POST', { email, password: 'not-a-real-password' });
     expect(last?.status).toBe(429);
   });
+  it('invalidates source corrections and refuses stale revisions', async () => {
+    const sourceId = createdSources[0];
+    const change = {
+      id: sourceId,
+      revision: 1,
+      title: 'Corrected integration source',
+      url: `https://example.org/${prefix}`,
+      kind: 'GOVERNMENT',
+      excerpt: 'Corrected fictional integration evidence.',
+    };
+    expect((await call('admin/sources', 'PATCH', change, 'editor')).status).toBe(200);
+    expect((await call('sources')).data.items.some((s: { id: string }) => s.id === sourceId)).toBe(
+      false,
+    );
+    expect((await call('admin/sources', 'PATCH', change, 'editor')).status).toBe(409);
+    expect(
+      (
+        await call(
+          'admin/reviews',
+          'POST',
+          {
+            entityType: 'source',
+            entityId: sourceId,
+            status: 'VERIFIED',
+            note: 'Rechecked correction independently.',
+          },
+          'verifier',
+        )
+      ).status,
+    ).toBe(200);
+    expect(await db.editorialReview.count({ where: { entityId: sourceId } })).toBeGreaterThan(1);
+  });
+  it('keeps future reminders private and hidden until delivery time', async () => {
+    const group = createdGroups[0];
+    const event = await db.communityEvent.findFirstOrThrow({ where: { groupId: group } });
+    const before = (await call('notifications', 'GET', undefined, 'editor')).data.items.length;
+    const result = await call(
+      `groups/${group}/events/${event.id}/reminder`,
+      'POST',
+      { remindAt: new Date(Date.now() + 3600000).toISOString() },
+      'editor',
+    );
+    expect(result.status).toBe(201);
+    expect((await call('notifications', 'GET', undefined, 'editor')).data.items).toHaveLength(
+      before,
+    );
+    const reminder = await db.notification.findFirstOrThrow({
+      where: { userId: ids.editor, deliverAt: { gt: new Date() } },
+    });
+    await db.notification.update({
+      where: { id: reminder.id },
+      data: { deliverAt: new Date(Date.now() - 1000) },
+    });
+    expect((await call('notifications', 'GET', undefined, 'editor')).data.items).toHaveLength(
+      before + 1,
+    );
+    expect(
+      (
+        await call(
+          `groups/${group}/events/${event.id}/reminder`,
+          'POST',
+          { remindAt: new Date(Date.now() + 3600000).toISOString() },
+          'moderator',
+        )
+      ).status,
+    ).toBe(404);
+  });
   it('exports and deletes account data without exposing password or session hashes', async () => {
     const exported = await call('account/export', 'GET', undefined, 'citizen');
     expect(exported.status).toBe(200);

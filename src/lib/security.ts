@@ -1,8 +1,17 @@
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
 import type { NextRequest } from 'next/server';
 import { db } from './db';
-const scryptAsync = promisify(scrypt);
+function derive(password: string, salt: string, legacy = false): Promise<Buffer> {
+  return new Promise((resolve, reject) =>
+    scrypt(
+      password,
+      salt,
+      64,
+      legacy ? {} : { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 },
+      (error, key) => (error ? reject(error) : resolve(key)),
+    ),
+  );
+}
 export class HttpError extends Error {
   constructor(
     public status: number,
@@ -24,13 +33,14 @@ export function newToken() {
 }
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString('hex');
-  const hash = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${salt}:${hash.toString('hex')}`;
+  const hash = await derive(password, salt);
+  return `v2:${salt}:${hash.toString('hex')}`;
 }
 export async function verifyPassword(password: string, stored: string) {
-  const [salt, encoded] = stored.split(':');
-  if (!salt || !encoded || encoded.length !== 128) return false;
-  const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+  const modern = stored.startsWith('v2:');
+  const [salt, encoded] = (modern ? stored.slice(3) : stored).split(':');
+  if (!/^[a-f0-9]{32}$/.test(salt || '') || !/^[a-f0-9]{128}$/.test(encoded || '')) return false;
+  const hash = await derive(password, salt, !modern);
   return timingSafeEqual(hash, Buffer.from(encoded, 'hex'));
 }
 export function assertSameOrigin(request: NextRequest) {

@@ -1,7 +1,25 @@
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { PrismaClient } from '@prisma/client';
 import path from 'node:path';
+// The optional serverless Chromium fallback cannot reuse a browser across contexts.
+const test = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+  ? base.extend({
+      context: async ({ playwright }, provide, info) => {
+        const options = info.project.use;
+        const browser = await playwright.chromium.launch(options.launchOptions);
+        const context = await browser.newContext({
+          baseURL: 'http://localhost:3000',
+          viewport: options.viewport,
+          deviceScaleFactor: options.deviceScaleFactor,
+          isMobile: options.isMobile,
+          hasTouch: options.hasTouch,
+        });
+        await provide(context);
+        await browser.close();
+      },
+    })
+  : base;
 const db = new PrismaClient();
 const password = 'Ephemeral-browser-test-only-238';
 async function register(request: import('@playwright/test').APIRequestContext, name: string) {
@@ -83,7 +101,7 @@ test('calculator validates inputs and produces tested scenarios', async ({ page 
   await page.getByLabel('Proposed hypothetical rate (%)').fill('0.5');
   await expect(page.getByText('-$1,000.00', { exact: true })).toBeVisible();
   await page.getByLabel('Current hypothetical rate (%)').fill('-1');
-  await expect(page.getByRole('alert')).toContainText('Enter valid');
+  await expect(page.locator('.calculation-results [role=alert]')).toContainText('Enter valid');
 });
 test('citizen submits report, owns private group and exports account', async ({ page }) => {
   await register(page.request, 'citizen');

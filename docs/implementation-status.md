@@ -1,0 +1,29 @@
+# Implementation status — v0.2 pilot
+
+This is executable full-stack pilot software with intentionally explicit operational gaps. It is not described as the entire long-term commercial product or as production-ready.
+
+| Area             | Implemented                                                                                                                                                             | Remaining / integration boundary                                                                                                |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Foundation       | Next.js/React/strict TS, PostgreSQL/Prisma, migration, shared design tokens, Docker targets, CI                                                                         | Native deployment verification and operational approval                                                                         |
+| Identity         | Registration/login/logout, hashed sessions, scoped roles, password-confirmed export/delete, session API                                                                 | Verified email, password recovery, MFA and session-management UI                                                                |
+| Location         | City/ZIP search, canonical state/county/city/jurisdiction tables                                                                                                        | Verified school/district boundaries, map geometry and geographic editing/import screens                                         |
+| BarrioDecide     | Persisted report creation, moderation, categories/search/status/pagination, timelines and evidence-gated state changes                                                  | Safe image pipeline, official agency delivery and duplicate assistance are disabled                                             |
+| CeroRuido        | Official sourced election date, office responsibilities, source dates, verified-only publication and explicit missing candidates                                        | Complete verified local/state candidate data, biographies, proposals, results and deadline import workflow                      |
+| ApoMatch         | Local-only topic selection, side-by-side documented proposals, missing-data states, alphabetic ordering                                                                 | No scores/recommendations by design; broader official dataset requires editorial work                                           |
+| ImpactoReal      | Tested hypothetical property-tax calculator, formula/version, units/assumptions and invalid states                                                                      | Real official budget datasets, additional models, uncertainty ranges and downloadable scenarios                                 |
+| VotoEnGrupo      | Private groups, membership, expiring single-use hashed invitations, owner events, voluntary descriptions, configurable private inbox reminders and in-app notifications | Calendar export, structured transport workflows and external message delivery                                                   |
+| Administration   | Organization dashboard, source creation/review/correction screens, elections/offices/candidates/candidacies/proposals, moderation, roles and audit                      | Bulk import, all-resource editing, high-volume pagination, public official/commitment screens and operational error aggregation |
+| AI               | Disabled-by-default provider interface and optional Ollama draft endpoint with provenance                                                                               | Provider-enabled runtime validation and human approval/export interface; no automatic publication                               |
+| SaaS             | Organizations, scoped memberships, subscription/flag schema, no billing                                                                                                 | Self-service organization onboarding, plan limits and commercial terms need a business decision                                 |
+| Privacy/security | Same-origin mutations, validation, size limits, SQL parameterization, scoped authorization, rate limits, account rights and retention command                           | Legal review, independent security test, edge anti-scraping, strict nonce CSP and monitored recovery drills                     |
+| Accessibility    | Semantic labels, keyboard focus, skip link, native controls, responsive themes; automated test suite                                                                    | Formal audit, screen-reader testing and full WCAG conformance review                                                            |
+
+## Next technical sequence
+
+1. Finish browser/native PostgreSQL/Docker evidence and resolve any findings in this PR.
+2. Curate complete official Auburn/Nemaha ballot and district coverage using a separate editor and verifier; preserve source publication dates and corrections.
+3. Add administrator MFA, verified email/recovery and an operator-approved rights contact before public registration is hosted.
+4. Configure isolated staging after owner authorization, run backup/restore and monitor resource usage on the actual machine.
+5. Expand only validated modules: safe attachment ingestion, calendar integration, public commitments, official budget calculators and organization plans.
+
+The DNET server, existing applications, proxies, volumes, certificates and backups have not been accessed or changed. No production site, chargeable service, political data export or billing integration was activated.

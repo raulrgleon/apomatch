@@ -3,7 +3,7 @@
   --bg: #f6f8f7;
   --surface: #fff;
   --ink: #172d2b;
-  --muted: #617570;
+  --muted: #536a62;
   --line: #e1e9e5;
   --accent: #166b52;
   --accent-light: #e9f4ed;
@@ -129,6 +129,7 @@ textarea:focus-visible {
   min-height: 100vh;
 }
 .sidebar {
+  overflow-y: auto;
   position: fixed;
   left: 0;
   top: 0;
@@ -2223,5 +2224,14 @@ tbody tr:last-child td {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 850px) {
+  .sidebar:not(.is-open) {
+    visibility: hidden;
+  }
+  .sidebar.is-open {
+    visibility: visible;
   }
 }

@@ -271,7 +271,7 @@ export function CivicApp({ route }: { route: string }) {
       <a className="skip-link" href="#main-content">
         {lang === 'en' ? 'Skip to content' : 'Ir al contenido'}
       </a>
-      <aside className={`sidebar ${menu ? 'is-open' : ''}`}>
+      <aside id="main-navigation" className={`sidebar ${menu ? 'is-open' : ''}`}>
         <Link href={href('home')} className="brand">
           <span className="brand-mark">
             <Landmark size={23} />
@@ -348,6 +348,8 @@ export function CivicApp({ route }: { route: string }) {
               className="icon-button mobile-menu"
               onClick={() => setMenu(true)}
               aria-label="Open navigation"
+              aria-expanded={menu}
+              aria-controls="main-navigation"
             >
               <Menu />
             </button>
@@ -931,6 +933,7 @@ function Community({
   lang: Language;
 }) {
   const t = messages[lang];
+  const [receipt, setReceipt] = useState('');
   const [data, setData] = useState<{ items: IssueView[]; total: number; page: number }>({
       items: [],
       total: 0,
@@ -997,9 +1000,15 @@ function Community({
           lang={lang}
           onDone={() => {
             setOpen(false);
+            setReceipt(t.submitted);
             setRefresh((v) => v + 1);
           }}
         />
+      )}
+      {receipt && (
+        <p className="notice" role="status">
+          {receipt}
+        </p>
       )}
       <div className="filter-bar">
         <div className="search-input">
@@ -1669,6 +1678,7 @@ function Groups({
                       {new Date(ev.startsAt).toLocaleString(lang === 'en' ? 'en-US' : 'es-US')}
                     </time>
                     <p>{ev.description}</p>
+                    <ReminderForm org={org} groupId={g.id} eventId={ev.id} lang={lang} />
                     {ev.officialResourceUrl && (
                       <a href={ev.officialResourceUrl} target="_blank" rel="noopener noreferrer">
                         {t.source}
@@ -1907,5 +1917,58 @@ function Account({
         )}
       </section>
     </div>
+  );
+}
+
+function ReminderForm({
+  org,
+  groupId,
+  eventId,
+  lang,
+}: {
+  org: string;
+  groupId: string;
+  eventId: string;
+  lang: Language;
+}) {
+  const [message, setMessage] = useState(''),
+    [busy, setBusy] = useState(false);
+  return (
+    <details>
+      <summary>
+        {lang === 'en' ? 'Set a private reminder' : 'Configurar recordatorio privado'}
+      </summary>
+      <form
+        className="form-stack"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          const data = new FormData(e.currentTarget);
+          try {
+            await api(`groups/${groupId}/events/${eventId}/reminder`, org, {
+              remindAt: new Date(String(data.get('remindAt'))).toISOString(),
+            });
+            setMessage(
+              lang === 'en'
+                ? 'Reminder saved in your platform inbox. No email or push delivery.'
+                : 'Recordatorio guardado en la bandeja de la plataforma. Sin envío por correo ni push.',
+            );
+          } catch (e) {
+            setMessage((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <label>
+          {lang === 'en' ? 'Remind me at (before the event)' : 'Recordarme (antes del evento)'}
+          <input type="datetime-local" name="remindAt" required />
+        </label>
+        <Button disabled={busy} variant="outline">
+          {messages[lang].save}
+        </Button>
+        <p role="status">{message}</p>
+      </form>
+    </details>
   );
 }
