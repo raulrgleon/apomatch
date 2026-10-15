@@ -64,3 +64,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build --tag apomatch:ci .
+      - name: Start isolated stack and verify readiness
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const password=crypto.randomBytes(24).toString('base64url');
+          fs.writeFileSync('.env',`POSTGRES_PASSWORD=${password}\nSESSION_SECRET=${crypto.randomBytes(48).toString('base64url')}\nAPP_ORIGIN=http://localhost:3000\n`,{mode:0o600});
+          JS
+          docker compose up --build -d
+          docker compose run --rm migrate node --import tsx prisma/seed.ts
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3000/api/health; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:3000/api/health
+          curl --fail --silent http://localhost:3000/api/elections
+      - name: Validate logical backup and isolated restoration
+        run: |
+          docker compose exec -T db pg_dump -U apomatch -d apomatch --format=custom --no-owner --no-acl > /tmp/apomatch-ci.dump
+          docker compose exec -T db createdb -U apomatch apomatch_restore
+          docker compose exec -T db pg_restore -U apomatch --dbname=apomatch_restore --exit-on-error --no-owner --no-acl < /tmp/apomatch-ci.dump
+          restored_count=$(docker compose exec -T db psql -U apomatch -d apomatch_restore -Atc 'SELECT count(*) FROM "City"')
+          test "$restored_count" = "2"
+      - name: Stop isolated resources
+        if: always()
+        run: docker compose down -v --remove-orphans
