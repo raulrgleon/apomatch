@@ -1,0 +1,92 @@
+name: Quality and PostgreSQL integration
+on:
+  push:
+    branches: [main, 'feat/**', 'fix/**']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: apomatch-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: apomatch
+          POSTGRES_PASSWORD: ci-ephemeral-password
+          POSTGRES_DB: apomatch_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U apomatch -d apomatch_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://apomatch:ci-ephemeral-password@localhost:5432/apomatch_test?schema=public
+      APP_ORIGIN: http://localhost:3000
+      SESSION_SECRET: ci-ephemeral-session-secret-never-production-2026
+      AI_PROVIDER: disabled
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run db:generate
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run db:migrate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Save reports and application screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            playwright-report/
+            test-results/
+            docs/screenshots/
+          retention-days: 7
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag apomatch:ci .
+      - name: Start isolated stack and verify readiness
+        run: |
+          node - <<'JS'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const password=crypto.randomBytes(24).toString('base64url');
+          fs.writeFileSync('.env',`POSTGRES_PASSWORD=${password}\nSESSION_SECRET=${crypto.randomBytes(48).toString('base64url')}\nAPP_ORIGIN=http://localhost:3000\n`,{mode:0o600});
+          JS
+          docker compose up --build -d
+          docker compose run --rm migrate node --import tsx prisma/seed.ts
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3000/api/health; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:3000/api/health
+          curl --fail --silent http://localhost:3000/api/elections
+      - name: Validate logical backup and isolated restoration
+        run: |
+          docker compose exec -T db pg_dump -U apomatch -d apomatch --format=custom --no-owner --no-acl > /tmp/apomatch-ci.dump
+          docker compose exec -T db createdb -U apomatch apomatch_restore
+          docker compose exec -T db pg_restore -U apomatch --dbname=apomatch_restore --exit-on-error --no-owner --no-acl < /tmp/apomatch-ci.dump
+          restored_count=$(docker compose exec -T db psql -U apomatch -d apomatch_restore -Atc 'SELECT count(*) FROM "City"')
+          test "$restored_count" = "2"
+      - name: Stop isolated resources
+        if: always()
+        run: docker compose down -v --remove-orphans

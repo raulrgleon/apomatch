@@ -1,0 +1,45 @@
+name: apomatch
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: apomatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong database password in .env}
+      POSTGRES_DB: apomatch
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - apomatch-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U apomatch -d apomatch']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+  migrate:
+    build:
+      context: .
+      target: migrations
+    environment:
+      DATABASE_URL: postgresql://apomatch:${POSTGRES_PASSWORD}@db:5432/apomatch?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+  app:
+    build:
+      context: .
+      target: runner
+    environment:
+      DATABASE_URL: postgresql://apomatch:${POSTGRES_PASSWORD}@db:5432/apomatch?schema=public
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      SESSION_SECRET: ${SESSION_SECRET:?Set at least 32 random characters}
+      AI_PROVIDER: disabled
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+volumes:
+  apomatch-postgres:

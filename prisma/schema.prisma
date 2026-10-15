@@ -1,0 +1,535 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EditorialStatus {
+  DRAFT
+  IN_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum IssueStatus {
+  REPORTED
+  IN_REVIEW
+  REFERRED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED_UNRESOLVED
+}
+
+enum IssueCategory {
+  STREETS
+  LIGHTING
+  WATER
+  WASTE
+  PARKS
+  SAFETY
+  SCHOOLS
+  TRANSPORT
+  OTHER
+}
+
+enum GroupRole {
+  OWNER
+  MEMBER
+}
+
+model User {
+  id               String                   @id @default(cuid())
+  email            String                   @unique
+  passwordHash     String
+  name             String
+  createdAt        DateTime                 @default(now())
+  memberships      OrganizationMembership[]
+  sessions         Session[]
+  issues           CommunityIssue[]
+  groupMemberships GroupMembership[]
+  groups           CommunityGroup[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+}
+
+model Role {
+  id          String                   @id
+  name        String                   @unique
+  permissions RolePermission[]
+  memberships OrganizationMembership[]
+}
+
+model Permission {
+  id    String           @id
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model Organization {
+  id            String                   @id @default(cuid())
+  slug          String                   @unique
+  name          String
+  isDemo        Boolean                  @default(false)
+  createdAt     DateTime                 @default(now())
+  memberships   OrganizationMembership[]
+  subscriptions Subscription[]
+  sources       Source[]
+  elections     Election[]
+  offices       Office[]
+  candidates    Candidate[]
+  issues        CommunityIssue[]
+  groups        CommunityGroup[]
+  officials     PublicOfficial[]
+  reviews       EditorialReview[]
+  auditLogs     AuditLog[]
+  flags         FeatureFlag[]
+}
+
+model OrganizationMembership {
+  userId         String
+  organizationId String
+  roleId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id])
+
+  @@id([userId, organizationId])
+}
+
+model Subscription {
+  id             String       @id @default(cuid())
+  organizationId String
+  plan           String       @default("pilot")
+  status         String       @default("inactive")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model FeatureFlag {
+  organizationId String
+  key            String
+  enabled        Boolean      @default(false)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, key])
+}
+
+model State {
+  id           String   @id
+  name         String
+  abbreviation String   @unique
+  counties     County[]
+}
+
+model County {
+  id      String @id
+  name    String
+  stateId String
+  state   State  @relation(fields: [stateId], references: [id])
+  cities  City[]
+
+  @@unique([stateId, name])
+}
+
+model City {
+  id            String           @id
+  name          String
+  countyId      String
+  isDemo        Boolean          @default(false)
+  county        County           @relation(fields: [countyId], references: [id])
+  zipCodes      CityZipCode[]
+  jurisdictions Jurisdiction[]
+  issues        CommunityIssue[]
+  groups        CommunityGroup[]
+
+  @@unique([countyId, name])
+}
+
+model CityZipCode {
+  cityId  String
+  zipCode String
+  city    City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@id([cityId, zipCode])
+  @@index([zipCode])
+}
+
+model Jurisdiction {
+  id                 String              @id @default(cuid())
+  name               String
+  kind               String
+  cityId             String
+  sourceUrl          String
+  verificationStatus EditorialStatus     @default(DRAFT)
+  verifiedAt         DateTime?
+  city               City                @relation(fields: [cityId], references: [id])
+  districts          ElectoralDistrict[]
+  elections          Election[]
+  offices            Office[]
+}
+
+model ElectoralDistrict {
+  id                String       @id @default(cuid())
+  name              String
+  jurisdictionId    String
+  boundarySourceUrl String?
+  jurisdiction      Jurisdiction @relation(fields: [jurisdictionId], references: [id])
+  offices           Office[]
+}
+
+model Source {
+  id             String                 @id @default(cuid())
+  organizationId String
+  title          String
+  url            String
+  kind           String                 @default("GOVERNMENT")
+  excerpt        String
+  publishedAt    DateTime?
+  retrievedAt    DateTime               @default(now())
+  verifiedAt     DateTime?
+  status         EditorialStatus        @default(DRAFT)
+  createdById    String?
+  revision       Int                    @default(1)
+  createdAt      DateTime               @default(now())
+  organization   Organization           @relation(fields: [organizationId], references: [id])
+  verifications  SourceVerification[]
+  elections      Election[]
+  offices        Office[]
+  statements     CandidateStatement[]
+  proposals      Proposal[]
+  officials      PublicOfficial[]
+  commitments    PublicCommitment[]
+  issueUpdates   CommunityIssueUpdate[]
+  documents      Document[]
+
+  @@unique([organizationId, url])
+  @@index([organizationId, status])
+}
+
+model SourceVerification {
+  id         String          @id @default(cuid())
+  sourceId   String
+  reviewerId String
+  status     EditorialStatus
+  note       String
+  revision   Int
+  snapshot   Json
+  createdAt  DateTime        @default(now())
+  source     Source          @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+}
+
+model Election {
+  id             String          @id @default(cuid())
+  organizationId String
+  jurisdictionId String
+  name           String
+  electionDate   DateTime        @db.Date
+  sourceId       String
+  status         EditorialStatus @default(DRAFT)
+  verifiedAt     DateTime?
+  createdById    String?
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  jurisdiction   Jurisdiction    @relation(fields: [jurisdictionId], references: [id])
+  source         Source          @relation(fields: [sourceId], references: [id])
+  candidacies    Candidacy[]
+
+  @@index([organizationId, electionDate])
+}
+
+model Office {
+  id               String             @id @default(cuid())
+  organizationId   String
+  jurisdictionId   String
+  districtId       String?
+  title            String
+  responsibilities String
+  sourceId         String
+  status           EditorialStatus    @default(DRAFT)
+  verifiedAt       DateTime?
+  createdById      String?
+  organization     Organization       @relation(fields: [organizationId], references: [id])
+  jurisdiction     Jurisdiction       @relation(fields: [jurisdictionId], references: [id])
+  district         ElectoralDistrict? @relation(fields: [districtId], references: [id])
+  source           Source             @relation(fields: [sourceId], references: [id])
+  candidacies      Candidacy[]
+  officials        PublicOfficial[]
+}
+
+model Candidate {
+  id             String               @id @default(cuid())
+  organizationId String
+  name           String
+  biography      String
+  status         EditorialStatus      @default(DRAFT)
+  verifiedAt     DateTime?
+  createdById    String?
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  candidacies    Candidacy[]
+  statements     CandidateStatement[]
+}
+
+model Candidacy {
+  id          String     @id @default(cuid())
+  candidateId String
+  electionId  String
+  officeId    String
+  candidate   Candidate  @relation(fields: [candidateId], references: [id])
+  election    Election   @relation(fields: [electionId], references: [id])
+  office      Office     @relation(fields: [officeId], references: [id])
+  proposals   Proposal[]
+
+  @@unique([candidateId, electionId, officeId])
+}
+
+model CandidateStatement {
+  id          String          @id @default(cuid())
+  candidateId String
+  sourceId    String
+  text        String
+  status      EditorialStatus @default(DRAFT)
+  candidate   Candidate       @relation(fields: [candidateId], references: [id])
+  source      Source          @relation(fields: [sourceId], references: [id])
+}
+
+model Proposal {
+  id          String          @id @default(cuid())
+  candidacyId String
+  topic       String
+  text        String
+  sourceId    String
+  status      EditorialStatus @default(DRAFT)
+  verifiedAt  DateTime?
+  createdById String?
+  candidacy   Candidacy       @relation(fields: [candidacyId], references: [id])
+  source      Source          @relation(fields: [sourceId], references: [id])
+
+  @@index([topic, status])
+}
+
+model PublicOfficial {
+  id             String             @id @default(cuid())
+  organizationId String
+  officeId       String
+  name           String
+  sourceId       String
+  status         EditorialStatus    @default(DRAFT)
+  verifiedAt     DateTime?
+  organization   Organization       @relation(fields: [organizationId], references: [id])
+  office         Office             @relation(fields: [officeId], references: [id])
+  source         Source             @relation(fields: [sourceId], references: [id])
+  commitments    PublicCommitment[]
+}
+
+model PublicCommitment {
+  id         String          @id @default(cuid())
+  officialId String
+  sourceId   String
+  text       String
+  status     EditorialStatus @default(DRAFT)
+  official   PublicOfficial  @relation(fields: [officialId], references: [id])
+  source     Source          @relation(fields: [sourceId], references: [id])
+}
+
+model CommunityIssue {
+  id                   String                     @id @default(cuid())
+  organizationId       String
+  cityId               String
+  authorId             String?
+  title                String
+  description          String
+  approximateLocation  String
+  category             IssueCategory
+  status               IssueStatus                @default(REPORTED)
+  published            Boolean                    @default(false)
+  isDemo               Boolean                    @default(false)
+  responsibleAuthority String?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  organization         Organization               @relation(fields: [organizationId], references: [id])
+  city                 City                       @relation(fields: [cityId], references: [id])
+  author               User?                      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  updates              CommunityIssueUpdate[]
+  attachments          CommunityIssueAttachment[]
+
+  @@index([organizationId, cityId, published, category])
+}
+
+model CommunityIssueUpdate {
+  id        String         @id @default(cuid())
+  issueId   String
+  status    IssueStatus
+  note      String
+  sourceId  String?
+  actorId   String?
+  createdAt DateTime       @default(now())
+  issue     CommunityIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  source    Source?        @relation(fields: [sourceId], references: [id])
+}
+
+model CommunityIssueAttachment {
+  id         String         @id @default(cuid())
+  issueId    String
+  storageKey String         @unique
+  mimeType   String
+  sizeBytes  Int
+  approved   Boolean        @default(false)
+  issue      CommunityIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+}
+
+model CommunityGroup {
+  id             String            @id @default(cuid())
+  organizationId String
+  cityId         String
+  ownerId        String
+  name           String
+  createdAt      DateTime          @default(now())
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  city           City              @relation(fields: [cityId], references: [id])
+  owner          User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships    GroupMembership[]
+  invitations    GroupInvitation[]
+  events         CommunityEvent[]
+}
+
+model GroupMembership {
+  groupId  String
+  userId   String
+  role     GroupRole      @default(MEMBER)
+  joinedAt DateTime       @default(now())
+  group    CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+}
+
+model GroupInvitation {
+  id        String         @id @default(cuid())
+  groupId   String
+  tokenHash String         @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  group     CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model CommunityEvent {
+  id                  String         @id @default(cuid())
+  groupId             String
+  title               String
+  startsAt            DateTime
+  description         String
+  officialResourceUrl String?
+  group               CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, startsAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliverAt DateTime  @default(now())
+
+  @@index([userId, deliverAt])
+}
+
+model CalculationModel {
+  id             String                @id
+  name           String
+  version        Int
+  formula        String
+  assumptions    String
+  sourceUrl      String
+  isHypothetical Boolean               @default(true)
+  scenarios      CalculationScenario[]
+}
+
+model CalculationScenario {
+  id        String           @id @default(cuid())
+  modelId   String
+  inputs    Json
+  outputs   Json
+  createdAt DateTime         @default(now())
+  model     CalculationModel @relation(fields: [modelId], references: [id])
+}
+
+model EditorialReview {
+  id             String          @id @default(cuid())
+  organizationId String
+  entityType     String
+  entityId       String
+  reviewerId     String
+  status         EditorialStatus
+  note           String
+  snapshot       Json
+  createdAt      DateTime        @default(now())
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, entityType, entityId])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor          User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+}
+
+model RateLimitBucket {
+  key      String   @id
+  count    Int      @default(0)
+  resetsAt DateTime
+
+  @@index([resetsAt])
+}
+
+model Document {
+  id        String    @id @default(cuid())
+  sourceId  String
+  text      String
+  digest    String
+  createdAt DateTime  @default(now())
+  source    Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  drafts    AiDraft[]
+}
+
+model AiDraft {
+  id         String          @id @default(cuid())
+  documentId String
+  text       String
+  provider   String
+  status     EditorialStatus @default(DRAFT)
+  createdAt  DateTime        @default(now())
+  document   Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}

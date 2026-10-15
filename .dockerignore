@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+.env*
+!.env.example
+.workspace-db
+playwright-report
+test-results
+coverage
+docs/screenshots
