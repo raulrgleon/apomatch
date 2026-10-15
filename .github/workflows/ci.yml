@@ -1,0 +1,66 @@
+name: Quality and PostgreSQL integration
+on:
+  push:
+    branches: [main, 'feat/**', 'fix/**']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: apomatch-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: apomatch
+          POSTGRES_PASSWORD: ci-ephemeral-password
+          POSTGRES_DB: apomatch_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U apomatch -d apomatch_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://apomatch:ci-ephemeral-password@localhost:5432/apomatch_test?schema=public
+      APP_ORIGIN: http://localhost:3000
+      SESSION_SECRET: ci-ephemeral-session-secret-never-production-2026
+      AI_PROVIDER: disabled
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run db:migrate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Save reports and application screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            playwright-report/
+            test-results/
+            docs/screenshots/
+          retention-days: 7
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag apomatch:ci .
